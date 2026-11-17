@@ -119,6 +119,7 @@ VLAN nativa dos trunks: **999** (sem hosts). Portas sem uso: **VLAN 998** e desl
 ```
 📦 BioGen-Redes-ADS-6-A
 ├── 🧬 BioGen-A10.pkt                     ← projeto pronto no Packet Tracer
+├── 📑 Relatorio-P2-Grupo4-BioGen.pdf     ← relatório oficial preenchido, com os prints
 ├── 📄 README.md
 ├── 🎤 apresentacao/
 │   └── Apresentacao-BioGen-Grupo4.pptx   ← 4 slides para a apresentação
@@ -130,9 +131,10 @@ VLAN nativa dos trunks: **999** (sem hosts). Portas sem uso: **VLAN 998** e desl
 │   ├── 02-guia-montagem-packet-tracer.md ← montagem passo a passo
 │   ├── 03-relatorio-P2.md                ← texto do relatório oficial
 │   └── 04-guia-de-estudo-do-grupo.md     ← explicação completa, do zero
-└── 🖼️ imagens/
-    ├── topologia.png
-    └── topologia-completa.png
+└── 🖼️ imagens/                           ← topologia e prints dos testes reais
+    ├── topologia.png · topologia-completa.png
+    ├── teste-acl-ping-bloqueado.png · teste-acl-web-liberado.png
+    └── teste-dns-nslookup.png · teste-dns-navegador.png · teste-stp-sw-a2.png
 ```
 
 ## 📚 Documentação
@@ -141,12 +143,18 @@ VLAN nativa dos trunks: **999** (sem hosts). Portas sem uso: **VLAN 998** e desl
 |---|---|
 | [📐 Plano de endereçamento](docs/01-plano-de-enderecamento.md) | todas as tabelas de rede |
 | [🛠️ Guia de montagem](docs/02-guia-montagem-packet-tracer.md) | remontar a rede do zero e testar |
-| [📝 Relatório P2](docs/03-relatorio-P2.md) | conteúdo das 7 seções do modelo oficial |
+| [📑 Relatório P2 (PDF)](Relatorio-P2-Grupo4-BioGen.pdf) | relatório de entrega no modelo do professor |
+| [📝 Relatório P2 (texto)](docs/03-relatorio-P2.md) | mesmo conteúdo em texto editável |
 | [🎓 Guia de estudo](docs/04-guia-de-estudo-do-grupo.md) | entender cada conceito, roteiro de testes e perguntas da banca |
 
 ---
 
 ## ✅ Testes principais
+
+<table><tr>
+<td><img src="imagens/teste-acl-ping-bloqueado.png" alt="Ping bloqueado no sequenciador"><br><sub>SEQ-01: ping IPv4 e IPv6 bloqueado pela ACL</sub></td>
+<td><img src="imagens/teste-acl-web-liberado.png" alt="LIMS acessível pelo sequenciador"><br><sub>SEQ-01: acesso web ao LIMS liberado</sub></td>
+</tr></table>
 
 | Teste | Resultado esperado |
 |---|---|
