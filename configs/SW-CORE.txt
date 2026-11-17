@@ -1,0 +1,95 @@
+! =====================================================================
+! SW-CORE (Cisco 2960) - switch central / Root Bridge do STP
+! G0/1 = trunk p/ R-BORDA | Fa0/23 = trunk SW-A1 | Fa0/24 = trunk SW-A2
+! Fa0/1-5 = servidores (VLAN 40) | Fa0/6 = PC-GERENCIA (VLAN 99)
+! =====================================================================
+configure terminal
+hostname SW-CORE
+no ip domain-lookup
+enable secret BioGen@2026
+service password-encryption
+banner motd # Acesso restrito - Laboratorio BioGen #
+ip domain-name biogen.local
+username admin privilege 15 secret BioGen@2026
+!
+vlan 10
+ name PESQUISA
+vlan 20
+ name SEQUENCIADORES
+vlan 30
+ name ADMINISTRATIVO
+vlan 40
+ name SERVIDORES
+vlan 99
+ name GERENCIA
+vlan 998
+ name NAO_UTILIZADAS
+vlan 999
+ name NATIVA
+exit
+!
+! ---------------- STP: este switch e a Root Bridge ----------------
+spanning-tree mode rapid-pvst
+spanning-tree vlan 1,10,20,30,40,99,999 root primary
+!
+! ---------------- Trunks 802.1Q ----------------
+interface GigabitEthernet0/1
+ description TRUNK p/ R-BORDA G0/0
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,99,999
+ switchport nonegotiate
+interface range FastEthernet0/23 - 24
+ description TRUNK p/ SW-A1 / SW-A2
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,99,999
+ switchport nonegotiate
+!
+! ---------------- Servidores (VLAN 40) ----------------
+interface range FastEthernet0/1 - 5
+ description SERVIDORES
+ switchport mode access
+ switchport access vlan 40
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security mac-address sticky
+ switchport port-security violation restrict
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+!
+! ---------------- PC da gerencia (VLAN 99) ----------------
+interface FastEthernet0/6
+ description PC-GERENCIA
+ switchport mode access
+ switchport access vlan 99
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security mac-address sticky
+ switchport port-security violation shutdown
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+!
+! ---------------- Portas nao utilizadas ----------------
+interface range FastEthernet0/7 - 22 , GigabitEthernet0/2
+ switchport mode access
+ switchport access vlan 998
+ shutdown
+!
+! ---------------- Gerencia ----------------
+interface Vlan99
+ ip address 10.99.1.242 255.255.255.240
+ no shutdown
+exit
+ip default-gateway 10.99.1.241
+access-list 10 permit 10.99.1.240 0.0.0.15
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+line console 0
+ login local
+line vty 0 15
+ login local
+ transport input ssh
+ access-class 10 in
+end
+write memory

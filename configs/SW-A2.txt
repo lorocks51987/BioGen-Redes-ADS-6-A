@@ -1,0 +1,72 @@
+! =====================================================================
+! SW-A2 (Cisco 2960) - Sala Limpa / Sequenciadores de DNA
+! G0/1 = trunk p/ SW-CORE Fa0/24 | G0/2 = trunk redundante p/ SW-A1 G0/2
+! Fa0/1-10 = VLAN 20 SEQUENCIADORES (1 MAC por porta, violacao = shutdown)
+! =====================================================================
+configure terminal
+hostname SW-A2
+no ip domain-lookup
+enable secret BioGen@2026
+service password-encryption
+banner motd # Acesso restrito - Sala Limpa BioGen #
+ip domain-name biogen.local
+username admin privilege 15 secret BioGen@2026
+!
+vlan 10
+ name PESQUISA
+vlan 20
+ name SEQUENCIADORES
+vlan 30
+ name ADMINISTRATIVO
+vlan 40
+ name SERVIDORES
+vlan 99
+ name GERENCIA
+vlan 998
+ name NAO_UTILIZADAS
+vlan 999
+ name NATIVA
+exit
+!
+! Prioridade padrao (32768) -> a G0/2 deste switch ficara Alternate/Blocking
+spanning-tree mode rapid-pvst
+!
+interface range GigabitEthernet0/1 - 2
+ description TRUNK p/ SW-CORE (G0/1) e SW-A1 (G0/2)
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,99,999
+ switchport nonegotiate
+!
+interface range FastEthernet0/1 - 10
+ description VLAN 20 SEQUENCIADORES
+ switchport mode access
+ switchport access vlan 20
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security mac-address sticky
+ switchport port-security violation shutdown
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+!
+interface range FastEthernet0/11 - 24
+ switchport mode access
+ switchport access vlan 998
+ shutdown
+!
+interface Vlan99
+ ip address 10.99.1.244 255.255.255.240
+ no shutdown
+exit
+ip default-gateway 10.99.1.241
+access-list 10 permit 10.99.1.240 0.0.0.15
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+line console 0
+ login local
+line vty 0 15
+ login local
+ transport input ssh
+ access-class 10 in
+end
+write memory

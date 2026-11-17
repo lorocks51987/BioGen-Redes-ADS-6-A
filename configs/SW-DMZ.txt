@@ -1,0 +1,40 @@
+! =====================================================================
+! SW-DMZ (Cisco 2960) - segmento isolado da DMZ (VLAN 50)
+! G0/1 = uplink p/ R-BORDA G0/1 (porta de acesso, sem trunk)
+! Fa0/1-2 = servidores publicos
+! =====================================================================
+configure terminal
+hostname SW-DMZ
+no ip domain-lookup
+enable secret BioGen@2026
+service password-encryption
+banner motd # DMZ BioGen - acesso restrito #
+!
+vlan 50
+ name DMZ
+vlan 998
+ name NAO_UTILIZADAS
+exit
+!
+interface GigabitEthernet0/1
+ description UPLINK p/ R-BORDA G0/1
+ switchport mode access
+ switchport access vlan 50
+!
+interface range FastEthernet0/1 - 2
+ description SERVIDORES DMZ
+ switchport mode access
+ switchport access vlan 50
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security mac-address sticky
+ switchport port-security violation shutdown
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+!
+interface range FastEthernet0/3 - 24 , GigabitEthernet0/2
+ switchport mode access
+ switchport access vlan 998
+ shutdown
+end
+write memory

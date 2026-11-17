@@ -1,0 +1,171 @@
+! =====================================================================
+! R-BORDA (Cisco 2911) - Laboratorio BioGen - Cenario A10
+! Colar no CLI a partir do modo "enable" (Router>enable  ->  Router#)
+! G0/0 = trunk p/ SW-CORE (Router-on-a-Stick) | G0/1 = DMZ | G0/2 = WAN (ISP)
+! =====================================================================
+configure terminal
+hostname R-BORDA
+no ip domain-lookup
+enable secret BioGen@2026
+service password-encryption
+banner motd # Acesso restrito - Laboratorio BioGen. Uso nao autorizado sera registrado. #
+ip domain-name biogen.local
+username admin privilege 15 secret BioGen@2026
+!
+ipv6 unicast-routing
+!
+! ---------------- DHCP (IPv4) para VLANs de usuarios ----------------
+ip dhcp excluded-address 10.99.0.1 10.99.0.10
+ip dhcp excluded-address 10.99.1.1 10.99.1.10
+ip dhcp pool POOL_PESQUISA
+ network 10.99.0.0 255.255.255.0
+ default-router 10.99.0.1
+ dns-server 10.99.1.194
+ domain-name biogen.local
+ip dhcp pool POOL_ADMIN
+ network 10.99.1.0 255.255.255.128
+ default-router 10.99.1.1
+ dns-server 10.99.1.194
+ domain-name biogen.local
+exit
+!
+! ---------------- Router-on-a-Stick (G0/0) ----------------
+interface GigabitEthernet0/0
+ description TRUNK p/ SW-CORE G0/1
+ no ip address
+ no shutdown
+interface GigabitEthernet0/0.10
+ description VLAN 10 PESQUISA
+ encapsulation dot1Q 10
+ ip address 10.99.0.1 255.255.255.0
+ ipv6 address fe80::1 link-local
+ ipv6 address 2001:db8:b10:10::1/64
+interface GigabitEthernet0/0.20
+ description VLAN 20 SEQUENCIADORES (Zero-Trust)
+ encapsulation dot1Q 20
+ ip address 10.99.1.129 255.255.255.192
+ ipv6 address fe80::1 link-local
+ ipv6 address 2001:db8:b10:20::1/64
+interface GigabitEthernet0/0.30
+ description VLAN 30 ADMINISTRATIVO
+ encapsulation dot1Q 30
+ ip address 10.99.1.1 255.255.255.128
+ ipv6 address fe80::1 link-local
+ ipv6 address 2001:db8:b10:30::1/64
+interface GigabitEthernet0/0.40
+ description VLAN 40 SERVIDORES
+ encapsulation dot1Q 40
+ ip address 10.99.1.193 255.255.255.224
+ ipv6 address fe80::1 link-local
+ ipv6 address 2001:db8:b10:40::1/64
+interface GigabitEthernet0/0.99
+ description VLAN 99 GERENCIA
+ encapsulation dot1Q 99
+ ip address 10.99.1.241 255.255.255.240
+ ipv6 address fe80::1 link-local
+ ipv6 address 2001:db8:b10:99::1/64
+!
+! ---------------- DMZ (G0/1) ----------------
+interface GigabitEthernet0/1
+ description DMZ - SW-DMZ G0/1
+ ip address 10.99.1.225 255.255.255.240
+ ipv6 address fe80::1 link-local
+ ipv6 address 2001:db8:b10:50::1/64
+ no shutdown
+!
+! ---------------- WAN (G0/2) ----------------
+interface GigabitEthernet0/2
+ description WAN - ISP G0/0
+ ip address 10.99.2.1 255.255.255.252
+ ipv6 address fe80::1 link-local
+ ipv6 address 2001:db8:b10:ff::1/64
+ no shutdown
+exit
+!
+! ---------------- Rotas padrao ----------------
+ip route 0.0.0.0 0.0.0.0 10.99.2.2
+ipv6 route ::/0 2001:db8:b10:ff::2
+!
+! =====================================================================
+! ACL 1 - ZERO-TRUST OUTBOUND DOS SEQUENCIADORES (IPv4)
+! Sequenciador so pode ENVIAR dados ao LIMS (FTP/HTTP) e usar NTP/Syslog.
+! =====================================================================
+ip access-list extended ACL_SEQ_ZEROTRUST
+ remark Upload de dados de sequenciamento para o LIMS
+ permit tcp 10.99.1.128 0.0.0.63 host 10.99.1.195 eq 21
+ permit tcp 10.99.1.128 0.0.0.63 host 10.99.1.195 eq 20
+ permit tcp 10.99.1.128 0.0.0.63 host 10.99.1.195 eq 80
+ remark Sincronismo de horario e envio de logs
+ permit udp 10.99.1.128 0.0.0.63 host 10.99.1.194 eq 123
+ permit udp 10.99.1.128 0.0.0.63 host 10.99.1.194 eq 514
+ remark Todo o resto e negado (Internet, outras VLANs, ICMP)
+ deny ip any any
+exit
+!
+! ACL 1b - mesma politica em IPv6 (sem ela o Dual-Stack seria um "bypass")
+ipv6 access-list ACL6_SEQ_ZEROTRUST
+ permit tcp 2001:db8:b10:20::/64 host 2001:db8:b10:40::11 eq 21
+ permit tcp 2001:db8:b10:20::/64 host 2001:db8:b10:40::11 eq 20
+ permit tcp 2001:db8:b10:20::/64 host 2001:db8:b10:40::11 eq 80
+ permit icmp any any nd-ns
+ permit icmp any any nd-na
+ deny ipv6 any any
+exit
+!
+interface GigabitEthernet0/0.20
+ ip access-group ACL_SEQ_ZEROTRUST in
+ ipv6 traffic-filter ACL6_SEQ_ZEROTRUST in
+exit
+!
+! =====================================================================
+! ACL 2 - ENTRADA DA INTERNET (WAN): so o site da DMZ e publicado
+! =====================================================================
+ip access-list extended ACL_WAN_IN
+ remark Publicacao do site de divulgacao cientifica
+ permit tcp any host 10.99.1.226 eq 80
+ permit tcp any host 10.99.1.226 eq 443
+ remark Respostas de conexoes iniciadas pela rede interna
+ permit tcp any 10.99.0.0 0.0.7.255 established
+ permit icmp any 10.99.0.0 0.0.7.255 echo-reply
+ permit icmp any 10.99.0.0 0.0.7.255 unreachable
+ deny ip any any
+exit
+interface GigabitEthernet0/2
+ ip access-group ACL_WAN_IN in
+exit
+!
+! =====================================================================
+! ACL 3 - DMZ ISOLADA: servidor publico nao inicia conexao p/ rede interna
+! =====================================================================
+ip access-list extended ACL_DMZ_IN
+ remark Respostas do servidor web para quem acessou o site
+ permit tcp host 10.99.1.226 eq 80 any established
+ permit tcp host 10.99.1.226 eq 443 any established
+ permit icmp 10.99.1.224 0.0.0.15 any echo-reply
+ remark DMZ nunca inicia conexao para a rede interna
+ deny ip 10.99.1.224 0.0.0.15 10.99.0.0 0.0.7.255
+ permit ip 10.99.1.224 0.0.0.15 any
+exit
+interface GigabitEthernet0/1
+ ip access-group ACL_DMZ_IN in
+exit
+!
+! ---------------- Acesso de gerencia: SSH somente da VLAN 99 ----------------
+access-list 10 permit 10.99.1.240 0.0.0.15
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+line console 0
+ login local
+ logging synchronous
+line vty 0 4
+ login local
+ transport input ssh
+ access-class 10 in
+exit
+!
+! ---------------- NTP e Syslog (SRV-INTERNO) ----------------
+ntp server 10.99.1.194
+logging host 10.99.1.194
+service timestamps log datetime msec
+end
+write memory

@@ -1,0 +1,28 @@
+! =====================================================================
+! ISP (Cisco 2911) - simula o provedor / Internet
+! G0/0 = link WAN com R-BORDA | G0/1 = rede "Internet" 203.0.113.0/24
+! =====================================================================
+configure terminal
+hostname ISP
+no ip domain-lookup
+ipv6 unicast-routing
+!
+interface GigabitEthernet0/0
+ description WAN - R-BORDA G0/2
+ ip address 10.99.2.2 255.255.255.252
+ ipv6 address fe80::2 link-local
+ ipv6 address 2001:db8:b10:ff::2/64
+ no shutdown
+interface GigabitEthernet0/1
+ description Internet simulada
+ ip address 203.0.113.1 255.255.255.0
+ ipv6 address fe80::1 link-local
+ ipv6 address 2001:db8:ffff::1/64
+ no shutdown
+exit
+!
+! Rota de volta para todo o bloco da BioGen
+ip route 10.99.0.0 255.255.248.0 10.99.2.1
+ipv6 route 2001:db8:b10::/48 2001:db8:b10:ff::1
+end
+write memory

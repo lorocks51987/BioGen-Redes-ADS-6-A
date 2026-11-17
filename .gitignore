@@ -1,0 +1,7 @@
+# Arquivos temporarios do Office e do Windows
+~$*
+Thumbs.db
+Desktop.ini
+
+# Backups do Packet Tracer
+*.bak
